@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Download, MoreHorizontal, Search, SlidersHorizontal } from 'lucide-react'
+import { ArrowDown, ArrowDownUp, ArrowUp, Search } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -27,9 +25,20 @@ const statusClasses: Record<DashboardDeviceStatus, string> = {
   offline: 'border-white/[0.07] bg-black/20 text-zinc-600 hover:bg-black/20',
 }
 
+type SortKey = 'power' | 'temperature' | 'timestamp'
+type SortDirection = 'asc' | 'desc'
+
+type ActiveSort = {
+  key: SortKey
+  direction: SortDirection
+}
+
+type SortState = ActiveSort | null
+
 function App() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<DashboardDeviceStatus | 'all'>('all')
+  const [sort, setSort] = useState<SortState>(null)
   const [devicesResponse, setDevicesResponse] = useState<DevicesResponse>(mockDevicesResponse)
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(mockDevicesResponse.items[0])
   const [detailOpen, setDetailOpen] = useState(false)
@@ -51,12 +60,22 @@ function App() {
   const devices = devicesResponse.items
   const filteredDevices = useMemo(() => {
     const query = search.trim().toLowerCase()
-    return devices.filter((device) => {
-      const matchesSearch = !query || device.id.toLowerCase().includes(query) || (device.name ?? '').toLowerCase().includes(query)
-      const matchesStatus = statusFilter === 'all' || toDashboardStatus(device.status) === statusFilter
-      return matchesSearch && matchesStatus
+    return devices
+      .filter((device) => {
+        const matchesSearch = !query || device.id.toLowerCase().includes(query) || (device.name ?? '').toLowerCase().includes(query)
+        const matchesStatus = statusFilter === 'all' || toDashboardStatus(device.status) === statusFilter
+        return matchesSearch && matchesStatus
+      })
+      .toSorted((a, b) => (sort ? compareDevices(a, b, sort) : 0))
+  }, [devices, search, statusFilter, sort])
+
+  function toggleSort(key: SortKey) {
+    setSort((current) => {
+      if (current?.key !== key) return { key, direction: 'desc' }
+      if (current.direction === 'desc') return { key, direction: 'asc' }
+      return null
     })
-  }, [devices, search, statusFilter])
+  }
 
   function openDevice(device: Device) {
     setSelectedDevice(device)
@@ -95,12 +114,6 @@ function App() {
                 <SelectItem value="offline">Offline</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="icon" className="h-7 w-7 border-white/[0.08] bg-[#0f1113] text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300">
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-            </Button>
-            <Button variant="outline" size="icon" className="h-7 w-7 border-white/[0.08] bg-[#0f1113] text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300">
-              <Download className="h-3.5 w-3.5" />
-            </Button>
           </div>
         </div>
 
@@ -119,11 +132,11 @@ function App() {
           <Table>
             <TableHeader className="bg-[#17181b]">
               <TableRow className="border-white/[0.07] hover:bg-transparent">
-                {['Device', 'Power', 'Temperature', 'Status', 'Last Seen', 'Actions'].map((h) => (
-                  <TableHead key={h} className="h-7 px-3 text-[9px] font-medium uppercase tracking-[0.18em] text-zinc-600 sm:px-4">
-                    {h}
-                  </TableHead>
-                ))}
+                <TableHead className="h-7 px-3 text-[9px] font-medium uppercase tracking-[0.18em] text-zinc-600 sm:px-4">Device</TableHead>
+                <SortableHead label="Power" sortKey="power" sort={sort} onSort={toggleSort} />
+                <SortableHead label="Temperature" sortKey="temperature" sort={sort} onSort={toggleSort} />
+                <TableHead className="h-7 px-3 text-[9px] font-medium uppercase tracking-[0.18em] text-zinc-600 sm:px-4">Status</TableHead>
+                <SortableHead label="Last Seen" sortKey="timestamp" sort={sort} onSort={toggleSort} />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -139,18 +152,6 @@ function App() {
                   <TableCell className="px-3 py-1.5 tabular-nums text-zinc-400 sm:px-4">{formatTemperature(device.temperature)}</TableCell>
                   <TableCell className="px-3 py-1.5 sm:px-4"><StatusBadge status={toDashboardStatus(device.status)} /></TableCell>
                   <TableCell className="px-3 py-1.5 tabular-nums text-zinc-500 sm:px-4">{formatLastSeen(device.timestamp)}</TableCell>
-                  <TableCell className="px-3 py-1.5 sm:px-4">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button aria-label={`Actions for ${device.name ?? device.id}`} variant="ghost" size="icon" onClick={(e) => e.stopPropagation()} className="h-6 w-6 text-zinc-600 hover:bg-white/[0.04] hover:text-zinc-300">
-                          <MoreHorizontal className="h-3.5 w-3.5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="border-white/[0.08] bg-[#111416] text-zinc-300">
-                        <DropdownMenuItem onClick={() => openDevice(device)} className="text-xs focus:bg-white/[0.06] focus:text-zinc-100">View metrics</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -165,6 +166,42 @@ function App() {
       </Sheet>
     </main>
   )
+}
+
+function SortableHead({ label, sortKey, sort, onSort }: { label: string; sortKey: SortKey; sort: SortState; onSort: (key: SortKey) => void }) {
+  const isActive = sort?.key === sortKey
+  const Icon = isActive ? (sort.direction === 'asc' ? ArrowUp : ArrowDown) : ArrowDownUp
+
+  return (
+    <TableHead className="h-7 px-3 text-[9px] font-medium uppercase tracking-[0.18em] text-zinc-600 sm:px-4">
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className="flex items-center gap-1 uppercase tracking-[0.18em] transition-colors hover:text-zinc-300"
+        aria-sort={isActive ? (sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+      >
+        {label}
+        <Icon className={`h-3 w-3 ${isActive ? 'text-zinc-400' : 'text-zinc-700'}`} />
+      </button>
+    </TableHead>
+  )
+}
+
+function compareDevices(a: Device, b: Device, sort: ActiveSort) {
+  const aValue = getSortValue(a, sort.key)
+  const bValue = getSortValue(b, sort.key)
+
+  if (aValue === null && bValue === null) return 0
+  if (aValue === null) return 1
+  if (bValue === null) return -1
+
+  const result = aValue - bValue
+  return sort.direction === 'asc' ? result : -result
+}
+
+function getSortValue(device: Device, key: SortKey) {
+  if (key === 'timestamp') return device.timestamp === null ? null : new Date(device.timestamp).getTime()
+  return device[key]
 }
 
 function SummaryItem({ label, value }: { label: string; value: string | number }) {
