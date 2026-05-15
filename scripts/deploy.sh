@@ -57,11 +57,14 @@ echo "Restarting managed processes..."
 stop_pid_file "$SIM_PID_FILE" "device simulator"
 stop_pid_file "$API_PID_FILE" "ingestion endpoint"
 
-STATIC_DIR="$ROOT_DIR/datacenter-dashboard/dist" \
-HOST="$HOST" \
-PORT="$PORT" \
-LOG_FILE="$LOG_DIR/ingestion.log" \
-nohup npm run start -w ingestion-endpoint > "$LOG_DIR/ingestion.stdout.log" 2>&1 &
+(
+  cd "$ROOT_DIR/ingestion-endpoint"
+  STATIC_DIR="$ROOT_DIR/datacenter-dashboard/dist" \
+  HOST="$HOST" \
+  PORT="$PORT" \
+  LOG_FILE="$LOG_DIR/ingestion.log" \
+  exec node dist/server.js
+) > "$LOG_DIR/ingestion.stdout.log" 2>&1 &
 echo $! > "$API_PID_FILE"
 
 echo "Waiting for API healthcheck on port $PORT..."
@@ -73,12 +76,14 @@ for _ in {1..60}; do
 done
 curl -fsS "http://127.0.0.1:${PORT}/health" >/dev/null
 
-nohup npm run start -w device-simulation -- \
-  --url "$SIM_URL" \
-  --interval "$SIM_INTERVAL" \
-  --devices "$SIM_DEVICES" \
-  --log-file "$LOG_DIR/device-simulation.log" \
-  > "$LOG_DIR/device-simulation.stdout.log" 2>&1 &
+(
+  cd "$ROOT_DIR/device-simulation"
+  exec node dist/index.js \
+    --url "$SIM_URL" \
+    --interval "$SIM_INTERVAL" \
+    --devices "$SIM_DEVICES" \
+    --log-file "$LOG_DIR/device-simulation.log"
+) > "$LOG_DIR/device-simulation.stdout.log" 2>&1 &
 echo $! > "$SIM_PID_FILE"
 
 trap - ERR
