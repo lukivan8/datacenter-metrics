@@ -12,6 +12,10 @@
     "dev:web": "npm run dev -w datacenter-dashboard",
     "build:shared": "npm run build -w @lukivan8-datacenter/shared",
     "build:api": "npm run build -w ingestion-endpoint",
-    "build:web": "npm run build -w datacenter-dashboard"
+    "build:web": "npm run build -w datacenter-dashboard",
+    "deploy": "./scripts/deploy.sh",
+    "stop": "./scripts/stop.sh",
+    "status": "./scripts/status.sh",
+    "build": "npm run build:shared && npm run build:api && npm run build -w device-simulation && npm run build:web"
   }
 }

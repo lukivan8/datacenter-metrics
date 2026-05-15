@@ -1,13 +1,14 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
-import { mkdirSync } from "node:fs";
-import { dirname } from "node:path";
+import { createReadStream, existsSync, mkdirSync, statSync } from "node:fs";
+import { dirname, extname, join, normalize, resolve } from "node:path";
 import { deviceStatusSchema, metricIngestSchema } from "@lukivan8-datacenter/shared";
 import { z } from "zod";
 import { pool } from "./db.js";
 import { MetricBuffer } from "./registries/buffer.js";
 import { config } from "./config.js";
 import { LiveSubscriberRegistry } from "./registries/liveSubscribers.js";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type {
     DeviceListItemRow,
     DeviceListSummaryRow,
@@ -26,6 +27,49 @@ import { getLatestTelemetryForDeviceQuery } from "./queries/deviceLive.js";
 
 function n(value: unknown) {
     return value === null || value === undefined ? null : Number(value);
+}
+
+const mimeTypes: Record<string, string> = {
+    ".css": "text/css; charset=utf-8",
+    ".gif": "image/gif",
+    ".html": "text/html; charset=utf-8",
+    ".ico": "image/x-icon",
+    ".js": "text/javascript; charset=utf-8",
+    ".json": "application/json; charset=utf-8",
+    ".map": "application/json; charset=utf-8",
+    ".png": "image/png",
+    ".svg": "image/svg+xml",
+    ".txt": "text/plain; charset=utf-8",
+    ".webp": "image/webp",
+};
+
+function registerStaticRoutes(app: FastifyInstance) {
+    const staticDir = resolve(config.staticDir);
+    const indexPath = join(staticDir, "index.html");
+
+    if (!existsSync(indexPath)) {
+        app.log.warn({ staticDir }, "dashboard static files not found; API-only mode");
+        return;
+    }
+
+    app.get("/*", async (request: FastifyRequest, reply: FastifyReply) => {
+        const url = new URL(request.url, "http://localhost");
+        const decodedPath = decodeURIComponent(url.pathname);
+        const requestedPath = decodedPath === "/" ? "/index.html" : decodedPath;
+        const filePath = normalize(join(staticDir, requestedPath));
+
+        let pathToServe = filePath.startsWith(staticDir) ? filePath : indexPath;
+        if (!existsSync(pathToServe) || !statSync(pathToServe).isFile()) {
+            const acceptsHtml = request.headers.accept?.includes("text/html") ?? false;
+            if (!acceptsHtml) {
+                return reply.code(404).send({ error: "Not found" });
+            }
+            pathToServe = indexPath;
+        }
+
+        const contentType = mimeTypes[extname(pathToServe)] ?? "application/octet-stream";
+        return reply.header("Content-Type", contentType).send(createReadStream(pathToServe));
+    });
 }
 
 export async function buildServer() {
@@ -217,6 +261,8 @@ export async function buildServer() {
     app.addHook("onClose", async () => {
         await metricBuffer.stop();
     });
+
+    registerStaticRoutes(app);
     return app;
 }
 

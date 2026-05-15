@@ -52,7 +52,7 @@ export type DeviceMetricsResponse = {
 
 export type DeviceLiveResponse = Device | MetricPoint
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://perry:3000'
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
 async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, { signal })

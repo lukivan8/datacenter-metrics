@@ -10,7 +10,7 @@ Usage:
 
 Options:
   --devices, -d    Number of simulated devices (default: 50), e.g. 10
-  --interval, -i   Reporting interval in ms or seconds (default: 15s), e.g. 15000, 15000ms, 15s
+  --interval, -i   Reporting interval in ms or seconds (default: 3s), e.g. 3000, 3000ms, 3s
   --url, -u        Ingestion endpoint URL (default: http://localhost:3000/api/metrics)
   --log-file, -l   Write simulator logs to this file pattern (default: logs/device-simulation.log)
   --dry-run        Print payloads instead of sending HTTP requests

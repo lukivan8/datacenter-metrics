@@ -3,3 +3,5 @@
 **/.env
 **/logs
 device-simulation/device-ids.json
+
+.run

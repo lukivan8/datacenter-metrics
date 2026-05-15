@@ -24,6 +24,7 @@ export const config = {
   maxInsertBatchSize,
   maxBufferSize: clamp(num('MAX_BUFFER_SIZE', 5000), 1, 100_000),
   dbPoolMax: clamp(num('DB_POOL_MAX', 5), 1, 20),
-  logLevel: 'info',
+  logLevel: process.env.LOG_LEVEL ?? 'info',
   logFile: process.env.LOG_FILE ?? defaultLogFile(),
+  staticDir: process.env.STATIC_DIR ?? '../datacenter-dashboard/dist',
 };
