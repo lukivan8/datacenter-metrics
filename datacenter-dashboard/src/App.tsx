@@ -479,7 +479,9 @@ function getMetricDomain(data: TelemetryChartData[], valueKey: TelemetryMetricKe
 }
 
 function MetricList({ points }: { points: MetricPoint[] }) {
-  const recentPoints = points.slice(-8).toReversed()
+  const recentPoints = points
+    .toSorted((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 8)
 
   if (recentPoints.length === 0) return null
 
