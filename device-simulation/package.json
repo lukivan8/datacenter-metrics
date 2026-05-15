@@ -1,0 +1,27 @@
+{
+  "name": "device-simulation",
+  "version": "1.0.0",
+  "description": "Simple TypeScript CLI simulator for device telemetry ingestion.",
+  "type": "module",
+  "bin": {
+    "device-sim": "./src/index.ts"
+  },
+  "scripts": {
+    "sim": "tsx src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "telemetry",
+    "simulator",
+    "cli"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}
