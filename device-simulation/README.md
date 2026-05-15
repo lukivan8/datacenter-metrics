@@ -38,7 +38,7 @@ npm start -- [--url <endpoint>] [--devices <count>] [--interval <duration>]
 
 When running through `npm run`, include the standalone `--` before simulator arguments. Without it, npm tries to parse flags like `--devices` as npm options instead of forwarding them to the simulator.
 
-By default, the simulator runs 50 devices reporting every 15 seconds to `http://localhost:3000/api/metrics`. Intervals can be provided as milliseconds or seconds: `15000`, `15000ms`, or `15s`.
+By default, the simulator runs 50 devices reporting every 15 seconds to `http://localhost:3000/api/metrics` and writes one log file per run under `logs/`, using names like `logs/device-simulation-2026-05-15T12-34-56-789Z.log`. Intervals can be provided as milliseconds or seconds: `15000`, `15000ms`, or `15s`.
 
 ## Examples
 

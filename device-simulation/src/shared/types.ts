@@ -10,6 +10,7 @@ export type Config = {
   intervalMs: number;
   endpointUrl: string;
   dryRun: boolean;
+  logFile: string;
 };
 
 export type Stats = {

@@ -97,43 +97,62 @@ export class MetricBuffer {
             config.maxInsertBatchSize,
         );
         const batch = this.buffer.splice(0, batchSize);
+        const deviceIds = [...new Set(batch.map((m) => m.deviceId))];
+        const batchStartedAt = Date.now();
         let shouldContinueFlushing = false;
         let client: PoolClient | undefined;
+        let flushStep = "connect";
 
         try {
             client = await this.pool.connect();
+            flushStep = "begin transaction";
             await client.query(beginMetricFlushTransactionQuery());
 
-            const deviceIds = [...new Set(batch.map((m) => m.deviceId))];
+            flushStep = "insert missing devices";
             await client.query(insertMissingDevicesQuery(deviceIds));
+            flushStep = "insert metric batch";
             await client.query(insertMetricBatchQuery(batch));
+            flushStep = "upsert latest telemetry";
             const latestResult = await client.query<DeviceLatestRow>(
                 upsertLatestTelemetryForMetricBatchQuery(batch),
             );
 
+            flushStep = "commit transaction";
             await client.query(commitMetricFlushTransactionQuery());
             this.consecutiveFlushFailures = 0;
             this.publishLiveUpdates(latestResult.rows);
-            this.logger.debug(
+            this.logger.info(
                 {
                     flushed: batch.length,
+                    deviceCount: deviceIds.length,
                     liveUpdates: latestResult.rowCount,
+                    durationMs: Date.now() - batchStartedAt,
                     remainingBuffered: this.buffer.length,
                 },
                 "metric batch flushed",
             );
             shouldContinueFlushing = this.buffer.length >= config.flushBatchSize;
         } catch (error) {
-            await client
-                ?.query(rollbackMetricFlushTransactionQuery())
-                .catch(() => undefined);
+            const rollbackStep = flushStep;
+            await client?.query(rollbackMetricFlushTransactionQuery()).catch((rollbackError) => {
+                this.logger.error(
+                    { err: rollbackError, failedFlushStep: rollbackStep },
+                    "metric batch rollback failed",
+                );
+            });
             this.buffer.unshift(...batch);
             this.consecutiveFlushFailures += 1;
             const retryDelayMs = this.retryDelayMs();
             this.logger.error(
                 {
-                    error,
+                    err: error,
+                    failedFlushStep: flushStep,
                     batchSize: batch.length,
+                    deviceCount: deviceIds.length,
+                    sampleDeviceIds: deviceIds.slice(0, 5),
+                    oldestMetricTimestamp: batch[0]?.timestamp,
+                    newestMetricTimestamp: batch.at(-1)?.timestamp,
+                    durationMs: Date.now() - batchStartedAt,
                     buffered: this.buffer.length,
                     retryDelayMs,
                     consecutiveFlushFailures: this.consecutiveFlushFailures,

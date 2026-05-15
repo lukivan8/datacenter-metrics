@@ -1,17 +1,18 @@
 import type { Config } from "../shared/types.js";
-import { DEFAULT_DEVICE_COUNT, DEFAULT_ENDPOINT_URL, DEFAULT_INTERVAL_MS } from "./defaults.js";
+import { DEFAULT_DEVICE_COUNT, DEFAULT_ENDPOINT_URL, DEFAULT_INTERVAL_MS, DEFAULT_LOG_FILE } from "./defaults.js";
 import { parseInterval, parsePositiveInteger, parseUrl } from "./parsers.js";
 
 export function usage(): string {
   return `Device telemetry simulator
 
 Usage:
-  npm run sim -- [--url <endpoint>] [--devices <count>] [--interval <duration>] [--dry-run]
+  npm run sim -- [--url <endpoint>] [--devices <count>] [--interval <duration>] [--log-file <path>] [--dry-run]
 
 Options:
   --devices, -d    Number of simulated devices (default: 50), e.g. 10
   --interval, -i   Reporting interval in ms or seconds (default: 15s), e.g. 15000, 15000ms, 15s
   --url, -u        Ingestion endpoint URL (default: http://localhost:3000/api/metrics)
+  --log-file, -l   Write simulator logs to this file pattern (default: logs/device-simulation.log)
   --dry-run        Print payloads instead of sending HTTP requests
   --help, -h       Show this help
 `;
@@ -51,8 +52,9 @@ export function parseArgs(argv: string[]): Config {
   const intervalMs = parseInterval(args.get("interval"), DEFAULT_INTERVAL_MS);
   const endpointUrl = parseUrl(args.get("url"), DEFAULT_ENDPOINT_URL);
   const dryRun = args.get("dry-run") === true;
+  const logFile = parseLogFile(args.get("log-file"), DEFAULT_LOG_FILE);
 
-  return { deviceCount, intervalMs, endpointUrl, dryRun };
+  return { deviceCount, intervalMs, endpointUrl, dryRun, logFile };
 }
 
 function normalizeKey(arg: string): string | undefined {
@@ -66,7 +68,23 @@ function normalizeKey(arg: string): string | undefined {
     case "--url":
     case "-u":
       return "url";
+    case "--log-file":
+    case "-l":
+      return "log-file";
     default:
       return undefined;
   }
+}
+
+function parseLogFile(value: string | boolean | undefined, fallback: string): string {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new Error("log-file must not be empty");
+  }
+
+  return trimmed;
 }

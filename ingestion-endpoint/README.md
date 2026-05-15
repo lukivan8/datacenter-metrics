@@ -26,15 +26,19 @@ npm run db:migrate # apply db/schema.sql using DATABASE_URL
 
 The server uses Fastify/Pino logging. The default log level is `info`.
 
-To change the level or write logs to a file, set these environment variables:
+By default, each server run writes to a new file under `./logs`:
+
+```text
+./logs/ingestion-<timestamp>-<pid>.log
+```
+
+To change the level or force a specific log file, set these environment variables:
 
 ```bash
 LOG_LEVEL=debug
 LOG_FILE=./logs/ingestion.log
 npm run dev
 ```
-
-If `LOG_FILE` is unset, logs go to stdout.
 
 ## API examples
 

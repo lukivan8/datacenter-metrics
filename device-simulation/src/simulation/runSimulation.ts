@@ -3,6 +3,7 @@ import { createStableDeviceId, runDevice } from "./device.js";
 import {
   announceShutdown,
   announceSimulationStart,
+  initializeFileLogging,
   logDryRunPayload,
   logFinalStats,
   logSendFailure,
@@ -54,7 +55,8 @@ export async function runSimulation(config: Config): Promise<void> {
   process.once("SIGINT", stopSimulation);
   process.once("SIGTERM", stopSimulation);
 
-  announceSimulationStart(config);
+  const logFile = initializeFileLogging(config.logFile);
+  announceSimulationStart({ ...config, logFile });
 
   statsTimer = startStatsLogging(stats, controller.signal);
 

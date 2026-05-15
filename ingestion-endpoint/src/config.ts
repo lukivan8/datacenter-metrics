@@ -10,6 +10,11 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 
 const maxInsertBatchSize = clamp(num('MAX_INSERT_BATCH_SIZE', 1000), 1, 5000);
 
+const defaultLogFile = () => {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  return `./logs/ingestion-${timestamp}-${process.pid}.log`;
+};
+
 export const config = {
   port: num('PORT', 3000),
   host: process.env.HOST ?? '0.0.0.0',
@@ -19,8 +24,8 @@ export const config = {
   maxInsertBatchSize,
   maxBufferSize: clamp(num('MAX_BUFFER_SIZE', 5000), 1, 100_000),
   dbPoolMax: clamp(num('DB_POOL_MAX', 5), 1, 20),
-  logLevel: process.env.LOG_LEVEL ?? 'info',
-  logFile: process.env.LOG_FILE,
+  logLevel: 'info',
+  logFile: process.env.LOG_FILE ?? defaultLogFile(),
   thresholds: {
     warningPower: num('WARNING_POWER', 800),
     criticalPower: num('CRITICAL_POWER', 1000),

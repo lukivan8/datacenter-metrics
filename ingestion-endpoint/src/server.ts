@@ -21,6 +21,7 @@ import {
     getDeviceListTotalQuery,
 } from "./queries/devices.js";
 import { getDeviceMetricsWithinWindowWithRollingAveragesQuery } from "./queries/deviceMetrics.js";
+import { getLatestTelemetryForDeviceQuery } from "./queries/deviceLive.js";
 
 
 function n(value: unknown) {
@@ -38,7 +39,9 @@ export async function buildServer() {
             file: config.logFile,
         },
     });
-    await app.register(cors, { origin: true });
+    // Open CORS is intentional: this API uses no cookies/credentials and it keeps local
+    // development simple when the UI is served from a different/remote machine.
+    await app.register(cors, { origin: "*" });
 
     const liveSubscribers = new LiveSubscriberRegistry();
     const metricBuffer = new MetricBuffer(pool, app.log, (rows) =>
@@ -53,15 +56,33 @@ export async function buildServer() {
 
     app.post("/api/metrics", async (request, reply) => {
         const parsed = metricIngestSchema.safeParse(request.body);
-        if (!parsed.success)
+        if (!parsed.success) {
+            request.log.warn(
+                {
+                    validation: z.flattenError(parsed.error),
+                    bufferedMetrics: metricBuffer.size(),
+                },
+                "metric ingestion request rejected: invalid payload",
+            );
             return reply.code(400).send({
                 error: "Invalid metric payload",
                 details: z.flattenError(parsed.error),
             });
-        if (!metricBuffer.enqueue(parsed.data))
+        }
+        if (!metricBuffer.enqueue(parsed.data)) {
+            request.log.error(
+                {
+                    deviceId: parsed.data.deviceId,
+                    timestamp: parsed.data.timestamp,
+                    bufferedMetrics: metricBuffer.size(),
+                    maxBufferSize: config.maxBufferSize,
+                },
+                "metric ingestion request rejected: buffer overloaded",
+            );
             return reply
                 .code(503)
                 .send({ error: "Ingestion buffer overloaded" });
+        }
         return reply.code(202).send({ accepted: true });
     });
 
@@ -123,11 +144,30 @@ export async function buildServer() {
 
     app.get("/api/devices/:id/live", async (request, reply) => {
         const { id } = request.params as { id: string };
+        const result = await pool.query(getLatestTelemetryForDeviceQuery(id));
+        const row = result.rows[0];
+        if (!row) return reply.code(404).send({ error: "Device telemetry not found" });
+        return {
+            id: row.id,
+            power: n(row.power),
+            temperature: n(row.temperature),
+            timestamp: row.timestamp.toISOString(),
+            receivedAt: row.received_at.toISOString(),
+            status: row.status,
+        };
+    });
+
+    app.get("/api/devices/:id/live/stream", async (request, reply) => {
+        const { id } = request.params as { id: string };
+        const origin = request.headers.origin;
 
         reply.raw.writeHead(200, {
             "Content-Type": "text/event-stream",
-            "Cache-Control": "no-cache",
+            "Cache-Control": "no-cache, no-transform",
             Connection: "keep-alive",
+            "Access-Control-Allow-Origin": typeof origin === "string" ? origin : "*",
+            Vary: "Origin",
+            "X-Accel-Buffering": "no",
         });
 
         const unsubscribe = liveSubscribers.subscribe(id, reply.raw);
@@ -159,6 +199,19 @@ export async function buildServer() {
                 rolling_avg_temperature: n(r.rolling_avg_temperature),
             })),
         };
+    });
+
+    app.addHook("onError", async (request, _reply, error) => {
+        request.log.error(
+            {
+                err: error,
+                method: request.method,
+                url: request.url,
+                params: request.params,
+                query: request.query,
+            },
+            "request failed",
+        );
     });
 
     app.addHook("onClose", async () => {
