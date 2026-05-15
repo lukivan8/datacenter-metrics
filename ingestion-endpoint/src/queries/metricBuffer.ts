@@ -1,4 +1,5 @@
 import type { QueryResultRow } from 'pg';
+import { generateDeviceName } from '../deviceNames.js';
 import type { DeviceLatestRow, TypedQueryConfig } from '../types/dbTypes.js';
 import type { MetricRecord } from '../types/types.js';
 
@@ -18,13 +19,14 @@ export function rollbackMetricFlushTransactionQuery(): TypedQueryConfig<EmptyRow
   return { text: 'rollback' };
 }
 
-export function insertMissingDevicesQuery(deviceIds: string[]): TypedQueryConfig<EmptyRow, [string[]]> {
+export function insertMissingDevicesQuery(deviceIds: string[]): TypedQueryConfig<EmptyRow, [string[], string[]]> {
   return {
     text: `
-      insert into devices(id)
-      select unnest($1::text[])
-      on conflict (id) do nothing`,
-    values: [deviceIds]
+      insert into devices(id, name)
+      select * from unnest($1::text[], $2::text[])
+      on conflict (id) do update set
+        name = coalesce(devices.name, excluded.name)`,
+    values: [deviceIds, deviceIds.map(generateDeviceName)]
   };
 }
 

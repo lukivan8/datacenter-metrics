@@ -26,10 +26,4 @@ export const config = {
   dbPoolMax: clamp(num('DB_POOL_MAX', 5), 1, 20),
   logLevel: 'info',
   logFile: process.env.LOG_FILE ?? defaultLogFile(),
-  thresholds: {
-    warningPower: num('WARNING_POWER', 800),
-    criticalPower: num('CRITICAL_POWER', 1000),
-    warningTemperature: num('WARNING_TEMPERATURE', 80),
-    criticalTemperature: num('CRITICAL_TEMPERATURE', 95)
-  }
 };

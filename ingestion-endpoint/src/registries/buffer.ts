@@ -1,3 +1,4 @@
+import { calculateTelemetryStatus } from "@lukivan8-datacenter/shared";
 import type { FastifyBaseLogger } from "fastify";
 import type { Pool, PoolClient } from "pg";
 import { config } from "../config.js";
@@ -15,19 +16,7 @@ import type { MetricInput, MetricRecord } from "../types/types.js";
 function computeStatus(
     metric: Pick<MetricInput, "power" | "temperature">,
 ): MetricRecord["status"] {
-    if (
-        metric.power >= config.thresholds.criticalPower ||
-        metric.temperature >= config.thresholds.criticalTemperature
-    )
-        return "critical";
-
-    if (
-        metric.power >= config.thresholds.warningPower ||
-        metric.temperature >= config.thresholds.warningTemperature
-    )
-        return "warning";
-
-    return "normal";
+    return calculateTelemetryStatus(metric);
 }
 
 export class MetricBuffer {

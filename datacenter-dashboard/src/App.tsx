@@ -265,6 +265,7 @@ function DeviceDetail({ device, open }: { device: Device; open: boolean }) {
   useDeviceLiveStream(device.id, open)
   const metrics = metricsQuery.data ?? { deviceId: device.id, windowSeconds: 60, items: [] }
   const live = liveQuery.data && 'timestamp' in liveQuery.data ? liveQuery.data : device
+  const liveStatus = 'status' in live && live.status ? live.status : device.status
 
   return (
     <>
@@ -281,7 +282,7 @@ function DeviceDetail({ device, open }: { device: Device; open: boolean }) {
         </div>
         <Card className="border-white/[0.08] bg-[#0f1113] shadow-none">
           <CardHeader className="p-3"><CardTitle className="text-xs font-medium text-zinc-400">Status</CardTitle></CardHeader>
-          <CardContent className="px-3 pb-3 pt-0"><StatusBadge status={toDashboardStatus(device.status)} /></CardContent>
+          <CardContent className="px-3 pb-3 pt-0"><StatusBadge status={toDashboardStatus(liveStatus)} /></CardContent>
         </Card>
         <Card className="border-white/[0.08] bg-[#0f1113] shadow-none">
           <CardHeader className="p-3"><CardTitle className="text-xs font-medium text-zinc-400">Live telemetry · Last {metrics.windowSeconds} seconds {metricsQuery.isFetching ? '· loading' : ''}</CardTitle></CardHeader>

@@ -110,7 +110,7 @@ Scale caveat: SSE subscriptions are process-local. This works for a single Fasti
 
 - `devices`: one row per known device. For this take-home, devices are auto-created on first metric because the simulator can generate arbitrary IDs. In production this would be replaced by explicit device provisioning and device authentication.
 - `metrics`: append-only raw telemetry. Used for the selected device's recent chart window.
-- `device_latest`: denormalized current state, one row per device. It is updated only when the incoming metric timestamp is newer than the stored timestamp. Status is computed from configurable warning/critical power and temperature thresholds.
+- `device_latest`: denormalized current state, one row per device. It is updated only when the incoming metric timestamp is newer than the stored timestamp. Status is computed from shared warning/critical power and temperature thresholds in `@lukivan8-datacenter/shared`.
 
 `device_latest` exists so dashboard reads do not scan raw time-series data. The fleet table and summary cards read current state from `device_latest`; the selected-device chart reads only a recent window from `metrics`.
 

@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { calculateTelemetryStatus } from '@lukivan8-datacenter/shared'
 
-import { API_BASE_URL, fetchDeviceLive, fetchDeviceMetrics, fetchDevices, type Device, type DeviceLiveResponse, type DeviceMetricsResponse, type DevicesParams, type DevicesResponse, type MetricPoint } from '@/lib/api'
+import { API_BASE_URL, fetchDeviceLive, fetchDeviceMetrics, fetchDevices, type Device, type DeviceLiveResponse, type DeviceMetricsResponse, type DevicesParams, type DevicesResponse, type DeviceStatus, type MetricPoint } from '@/lib/api'
 import { devicesKeys } from '@/lib/queries'
 
 export function useDevicesQuery(params: DevicesParams = {}) {
@@ -61,7 +62,9 @@ export function useDeviceLiveStream(deviceId: string | undefined, enabled: boole
       const metric = normalizeMetric(JSON.parse(event.data))
       if (!metric) return
 
-      queryClient.setQueryData(devicesKeys.live(deviceId), (current: DeviceLiveResponse | undefined) => ({ ...current, ...metric }))
+      const status = calculateDeviceStatus(metric.power, metric.temperature)
+
+      queryClient.setQueryData(devicesKeys.live(deviceId), (current: DeviceLiveResponse | undefined) => ({ ...current, ...metric, status }))
 
       queryClient.setQueriesData({ queryKey: devicesKeys.lists() }, (current: DevicesResponse | undefined) => {
         if (!current) return current
@@ -69,7 +72,7 @@ export function useDeviceLiveStream(deviceId: string | undefined, enabled: boole
           ...current,
           items: current.items.map((device) =>
             device.id === deviceId
-              ? { ...device, power: metric.power, temperature: metric.temperature, timestamp: metric.timestamp, lastSeenAt: metric.timestamp }
+              ? { ...device, power: metric.power, temperature: metric.temperature, status, timestamp: metric.timestamp, lastSeenAt: metric.timestamp }
               : device,
           ),
         }
@@ -88,6 +91,11 @@ export function useDeviceLiveStream(deviceId: string | undefined, enabled: boole
     source.onerror = () => source.close()
     return () => source.close()
   }, [deviceId, enabled, queryClient])
+}
+
+function calculateDeviceStatus(power: number | null, temperature: number | null): DeviceStatus {
+  if (power == null && temperature == null) return 'offline'
+  return calculateTelemetryStatus({ power: power ?? Number.NEGATIVE_INFINITY, temperature: temperature ?? Number.NEGATIVE_INFINITY })
 }
 
 function normalizeMetric(value: unknown): MetricPoint | null {
