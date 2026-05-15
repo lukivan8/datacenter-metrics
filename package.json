@@ -1,0 +1,16 @@
+{
+  "private": true,
+  "workspaces": [
+    "datacenter-dashboard",
+    "device-simulation",
+    "ingestion-endpoint",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev -w ingestion-endpoint",
+    "dev:web": "npm run dev -w datacenter-dashboard",
+    "build:shared": "npm run build -w @lukivan8-datacenter/shared",
+    "build:api": "npm run build -w ingestion-endpoint",
+    "build:web": "npm run build -w datacenter-dashboard"
+  }
+}

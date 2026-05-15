@@ -2,6 +2,7 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { deviceStatusSchema, metricIngestSchema } from "@lukivan8-datacenter/shared";
 import { z } from "zod";
 import { pool } from "./db.js";
 import { MetricBuffer } from "./registries/buffer.js";
@@ -21,14 +22,6 @@ import {
 } from "./queries/devices.js";
 import { getDeviceMetricsWithinWindowWithRollingAveragesQuery } from "./queries/deviceMetrics.js";
 
-const metricSchema = z.object({
-    deviceId: z.string().min(1).max(128),
-    power: z.number().nonnegative(),
-    temperature: z.number(),
-    timestamp: z.iso.datetime(),
-});
-
-const statusSchema = z.enum(["normal", "warning", "critical"]);
 
 function n(value: unknown) {
     return value === null || value === undefined ? null : Number(value);
@@ -59,7 +52,7 @@ export async function buildServer() {
     }));
 
     app.post("/api/metrics", async (request, reply) => {
-        const parsed = metricSchema.safeParse(request.body);
+        const parsed = metricIngestSchema.safeParse(request.body);
         if (!parsed.success)
             return reply.code(400).send({
                 error: "Invalid metric payload",
@@ -84,7 +77,7 @@ export async function buildServer() {
                 ? ("desc" as const)
                 : ("asc" as const);
 
-        const status = q.status ? statusSchema.parse(q.status) : undefined;
+        const status = q.status ? deviceStatusSchema.parse(q.status) : undefined;
         const queryOptions = {
             search: q.search,
             status,

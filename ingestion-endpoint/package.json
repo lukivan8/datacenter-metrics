@@ -7,15 +7,17 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
-    "build": "tsc",
+    "build": "npm run build -w @lukivan8-datacenter/shared && tsc",
     "typecheck": "tsc --noEmit",
     "db:migrate": "tsx scripts/migrate.ts",
+    "db:clear": "tsx scripts/clear-db.ts",
     "db:migrate:psql": "psql \"$DATABASE_URL\" -f db/schema.sql"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@lukivan8-datacenter/shared": "file:../packages/shared",
     "@fastify/cors": "^11.2.0",
     "dotenv": "^17.4.2",
     "fastify": "^5.8.5",
