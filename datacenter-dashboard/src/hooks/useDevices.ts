@@ -16,7 +16,10 @@ export function useDevicesQuery(params: DevicesParams = {}) {
 export function useDeviceMetricsQuery(id: string | undefined, windowSeconds = 60, enabled = true) {
   return useQuery({
     queryKey: devicesKeys.metrics(id ?? '', windowSeconds),
-    queryFn: ({ signal }) => fetchDeviceMetrics(id!, windowSeconds, signal),
+    queryFn: ({ signal }) => {
+      if (!id) throw new Error('Device id is required')
+      return fetchDeviceMetrics(id, windowSeconds, signal)
+    },
     enabled: Boolean(id) && enabled,
     staleTime: 5_000,
     refetchInterval: enabled ? 15_000 : false,
@@ -26,7 +29,10 @@ export function useDeviceMetricsQuery(id: string | undefined, windowSeconds = 60
 export function useDeviceLiveQuery(id: string | undefined, enabled = true) {
   return useQuery({
     queryKey: devicesKeys.live(id ?? ''),
-    queryFn: ({ signal }) => fetchDeviceLive(id!, signal),
+    queryFn: ({ signal }) => {
+      if (!id) throw new Error('Device id is required')
+      return fetchDeviceLive(id, signal)
+    },
     enabled: Boolean(id) && enabled,
     staleTime: 5_000,
     refetchInterval: enabled ? 15_000 : false,

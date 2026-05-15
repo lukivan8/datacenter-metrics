@@ -94,6 +94,7 @@ function App() {
   const topPadding = virtualRows[0]?.start ?? 0
   const bottomPadding = virtualRows.length > 0 ? rowVirtualizer.getTotalSize() - (virtualRows.at(-1)?.end ?? 0) : 0
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: query and statusFilter intentionally reset pagination even though they are not read in the effect body.
   useEffect(() => {
     setPage(1)
     rowVirtualizer.scrollToOffset(0)
@@ -103,6 +104,7 @@ function App() {
     if (page > totalPages) setPage(totalPages)
   }, [page, totalPages])
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: page intentionally triggers a scroll reset after pagination changes.
   useEffect(() => {
     rowVirtualizer.scrollToOffset(0)
   }, [page, rowVirtualizer])
@@ -254,12 +256,14 @@ function SortableHead({ label, sortKey, sort, onSort }: { label: string; sortKey
   const Icon = isActive ? (sort.direction === 'asc' ? ArrowUp : ArrowDown) : ArrowDownUp
 
   return (
-    <TableHead className="sticky top-0 h-7 bg-[#17181b] px-3 text-[9px] font-medium uppercase tracking-[0.18em] text-zinc-600 sm:px-4">
+    <TableHead
+      className="sticky top-0 h-7 bg-[#17181b] px-3 text-[9px] font-medium uppercase tracking-[0.18em] text-zinc-600 sm:px-4"
+      aria-sort={isActive ? (sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+    >
       <button
         type="button"
         onClick={() => onSort(sortKey)}
         className="flex items-center gap-1 uppercase tracking-[0.18em] transition-colors hover:text-zinc-300"
-        aria-sort={isActive ? (sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
       >
         {label}
         <Icon className={`h-3 w-3 ${isActive ? 'text-zinc-400' : 'text-zinc-700'}`} />
