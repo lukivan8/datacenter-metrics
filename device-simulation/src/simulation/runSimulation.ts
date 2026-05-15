@@ -1,5 +1,5 @@
 import type { Config, MetricPayload, SendResult, Stats } from "../shared/types.js";
-import { createStableDeviceId, runDevice } from "./device.js";
+import { getStableDeviceIds, runDevice } from "./device.js";
 import {
   announceShutdown,
   announceSimulationStart,
@@ -60,8 +60,9 @@ export async function runSimulation(config: Config): Promise<void> {
 
   statsTimer = startStatsLogging(stats, controller.signal);
 
-  const devices = Array.from({ length: config.deviceCount }, () =>
-    runDevice(createStableDeviceId(), config, dispatchMetric, controller.signal),
+  const deviceIds = await getStableDeviceIds(config.deviceCount);
+  const devices = deviceIds.map((deviceId) =>
+    runDevice(deviceId, config, dispatchMetric, controller.signal),
   );
 
   await Promise.all(devices);

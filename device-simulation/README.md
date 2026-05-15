@@ -17,7 +17,7 @@ The target payload shape is:
 
 This is a behavior simulator for a Live Device Telemetry Dashboard/API. It is useful for checking ingestion, persistence, live UI updates, error handling, and general system behavior with many timer-driven devices.
 
-Each simulated device has its own async loop, a stable UUID for the lifetime of the simulator process, startup skew, and small random interval jitter. Devices do not coordinate with each other.
+Each simulated device has its own async loop, a stable UUID persisted in `device-ids.json`, startup skew, and small random interval jitter. Devices do not coordinate with each other. Re-running with the same device count reuses the same UUIDs; increasing the count appends new UUIDs to the saved list.
 
 This is not a formal load-testing tool and should not be presented as a maximum-throughput benchmark. Single-threaded Node.js is appropriate here because the simulator models timer-driven network I/O, not CPU-heavy device behavior. For capacity testing, run multiple simulator instances or use dedicated tools such as k6.
 
