@@ -1,5 +1,6 @@
-import { useMemo, useRef, useState } from 'react'
-import { ArrowDown, ArrowDownUp, ArrowUp, RefreshCw, Search } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
+import { ArrowDown, ArrowDownUp, ArrowUp, Check, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Copy, RefreshCw, Search } from 'lucide-react'
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts'
 
 import { Badge } from '@/components/ui/badge'
@@ -40,6 +41,11 @@ const telemetryChartConfig = {
   rollingAvgTemperature: { label: 'Temp avg', color: '#fdba74' },
 } satisfies ChartConfig
 
+const DEVICES_PER_PAGE = 25
+const VIRTUAL_ROW_HEIGHT = 32
+const VIRTUAL_OVERSCAN = 5
+const VIRTUAL_LIST_MIN_HEIGHT = 450
+
 type SortKey = 'power' | 'temperature' | 'timestamp'
 type SortDirection = 'asc' | 'desc'
 
@@ -54,18 +60,18 @@ function App() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<DashboardDeviceStatus | 'all'>('all')
   const [sort, setSort] = useState<SortState>(null)
+  const [page, setPage] = useState(1)
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
-  const devicesQuery = useDevicesQuery({ pageSize: 200 })
+  const listRef = useRef<HTMLDivElement | null>(null)
+  const query = search.trim().toLowerCase()
+  const devicesQuery = useDevicesQuery({ pageSize: 50_000 })
   const devicesResponse = devicesQuery.data
   const prefetchDeviceDetails = usePrefetchDeviceDetails()
 
   const devices = devicesResponse?.items ?? []
   const selectedDevice = devices.find((device) => device.id === selectedDeviceId) ?? null
-  // TODO: move search/status/sort into devicesKeys.list(params) when the API guarantees support.
-  // For now these existing controls remain client-side over the bounded pageSize=200 fleet read.
   const filteredDevices = useMemo(() => {
-    const query = search.trim().toLowerCase()
     return devices
       .filter((device) => {
         const matchesSearch = !query || device.id.toLowerCase().includes(query) || (device.name ?? '').toLowerCase().includes(query)
@@ -73,7 +79,33 @@ function App() {
         return matchesSearch && matchesStatus
       })
       .toSorted((a, b) => (sort ? compareDevices(a, b, sort) : 0))
-  }, [devices, search, statusFilter, sort])
+  }, [devices, query, statusFilter, sort])
+  const totalDevices = devicesResponse?.total ?? devices.length
+  const totalPages = Math.max(1, Math.ceil(filteredDevices.length / DEVICES_PER_PAGE))
+  const pageStart = (page - 1) * DEVICES_PER_PAGE
+  const pagedDevices = filteredDevices.slice(pageStart, pageStart + DEVICES_PER_PAGE)
+  const rowVirtualizer = useVirtualizer({
+    count: pagedDevices.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: () => VIRTUAL_ROW_HEIGHT,
+    overscan: VIRTUAL_OVERSCAN,
+  })
+  const virtualRows = rowVirtualizer.getVirtualItems()
+  const topPadding = virtualRows[0]?.start ?? 0
+  const bottomPadding = virtualRows.length > 0 ? rowVirtualizer.getTotalSize() - (virtualRows.at(-1)?.end ?? 0) : 0
+
+  useEffect(() => {
+    setPage(1)
+    rowVirtualizer.scrollToOffset(0)
+  }, [query, statusFilter, rowVirtualizer])
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages)
+  }, [page, totalPages])
+
+  useEffect(() => {
+    rowVirtualizer.scrollToOffset(0)
+  }, [page, rowVirtualizer])
 
   function toggleSort(key: SortKey) {
     setSort((current) => {
@@ -147,18 +179,22 @@ function App() {
           <SummaryItem label="Critical" value={devicesResponse?.summary.criticalDevices ?? '—'} />
           <SummaryItem label="Power" value={devicesResponse ? `${Math.round(devicesResponse.summary.totalPower)} kW` : '—'} />
           <SummaryItem label="Avg Temp" value={formatTemperature(devicesResponse?.summary.avgTemperature ?? null)} />
-          <span className="ml-auto text-zinc-600">Showing {filteredDevices.length} / {devicesResponse?.total ?? 0}</span>
+          <span className="ml-auto text-zinc-600">Showing {pagedDevices.length} / {filteredDevices.length} filtered · {totalDevices} total</span>
           {devicesQuery.isFetching && <span className="rounded border border-white/[0.08] bg-white/[0.03] px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-zinc-500">Loading</span>}
         </div>
 
-        <div className="bg-[#0d0f11]">
+        <div
+          ref={listRef}
+          className="overflow-y-auto bg-[#0d0f11]"
+          style={{ minHeight: VIRTUAL_LIST_MIN_HEIGHT }}
+        >
           <Table>
-            <TableHeader className="bg-[#17181b]">
+            <TableHeader className="sticky top-0 z-10 bg-[#17181b]">
               <TableRow className="border-white/[0.07] hover:bg-transparent">
-                <TableHead className="h-7 px-3 text-[9px] font-medium uppercase tracking-[0.18em] text-zinc-600 sm:px-4">Device</TableHead>
+                <TableHead className="sticky top-0 h-7 bg-[#17181b] px-3 text-[9px] font-medium uppercase tracking-[0.18em] text-zinc-600 sm:px-4">Device</TableHead>
                 <SortableHead label="Power" sortKey="power" sort={sort} onSort={toggleSort} />
                 <SortableHead label="Temperature" sortKey="temperature" sort={sort} onSort={toggleSort} />
-                <TableHead className="h-7 px-3 text-[9px] font-medium uppercase tracking-[0.18em] text-zinc-600 sm:px-4">Status</TableHead>
+                <TableHead className="sticky top-0 h-7 bg-[#17181b] px-3 text-[9px] font-medium uppercase tracking-[0.18em] text-zinc-600 sm:px-4">Status</TableHead>
                 <SortableHead label="Last Seen" sortKey="timestamp" sort={sort} onSort={toggleSort} />
               </TableRow>
             </TableHeader>
@@ -166,11 +202,24 @@ function App() {
               {devicesQuery.isError && <TableMessage message="Unable to load devices" />}
               {devicesQuery.isLoading && <TableMessage message="Loading device telemetry…" />}
               {!devicesQuery.isLoading && !devicesQuery.isError && filteredDevices.length === 0 && <TableMessage message="No devices match the current filters" />}
-              {filteredDevices.map((device) => (
-                <DeviceRow key={device.id} device={device} onOpen={openDevice} onPrefetch={prefetchDeviceDetails} />
-              ))}
+              {topPadding > 0 && <TableSpacer height={topPadding} />}
+              {virtualRows.map((virtualRow) => {
+                const device = pagedDevices[virtualRow.index]
+                return <DeviceRow key={device.id} device={device} onOpen={openDevice} onPrefetch={prefetchDeviceDetails} />
+              })}
+              {bottomPadding > 0 && <TableSpacer height={bottomPadding} />}
             </TableBody>
           </Table>
+        </div>
+
+        <div className="flex items-center justify-between gap-3 border-t border-white/[0.07] bg-[#0f1113] px-3 py-2 text-[11px] text-zinc-500 sm:px-4">
+          <span className="tabular-nums">Page {page} of {totalPages} · {DEVICES_PER_PAGE} per page</span>
+          <div className="flex items-center gap-1.5">
+            <IconPageButton label="First page" onClick={() => setPage(1)} disabled={page === 1 || devicesQuery.isFetching}><ChevronsLeft className="h-3.5 w-3.5" /></IconPageButton>
+            <IconPageButton label="Previous page" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page === 1 || devicesQuery.isFetching}><ChevronLeft className="h-3.5 w-3.5" /></IconPageButton>
+            <IconPageButton label="Next page" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page === totalPages || devicesQuery.isFetching}><ChevronRight className="h-3.5 w-3.5" /></IconPageButton>
+            <IconPageButton label="Last page" onClick={() => setPage(totalPages)} disabled={page === totalPages || devicesQuery.isFetching}><ChevronsRight className="h-3.5 w-3.5" /></IconPageButton>
+          </div>
         </div>
       </section>
 
@@ -183,12 +232,29 @@ function App() {
   )
 }
 
+function IconPageButton({ label, disabled, onClick, children }: { label: string; disabled: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className="h-7 w-7 border-white/[0.08] bg-[#0f1113] p-0 text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300"
+    >
+      {children}
+    </Button>
+  )
+}
+
 function SortableHead({ label, sortKey, sort, onSort }: { label: string; sortKey: SortKey; sort: SortState; onSort: (key: SortKey) => void }) {
   const isActive = sort?.key === sortKey
   const Icon = isActive ? (sort.direction === 'asc' ? ArrowUp : ArrowDown) : ArrowDownUp
 
   return (
-    <TableHead className="h-7 px-3 text-[9px] font-medium uppercase tracking-[0.18em] text-zinc-600 sm:px-4">
+    <TableHead className="sticky top-0 h-7 bg-[#17181b] px-3 text-[9px] font-medium uppercase tracking-[0.18em] text-zinc-600 sm:px-4">
       <button
         type="button"
         onClick={() => onSort(sortKey)}
@@ -231,6 +297,14 @@ function TableMessage({ message }: { message: string }) {
   )
 }
 
+function TableSpacer({ height }: { height: number }) {
+  return (
+    <TableRow className="border-0 hover:bg-transparent" aria-hidden="true">
+      <TableCell colSpan={5} style={{ height, padding: 0 }} />
+    </TableRow>
+  )
+}
+
 function DeviceRow({ device, onOpen, onPrefetch }: { device: Device; onOpen: (device: Device) => void; onPrefetch: (id: string) => void }) {
   const hoverTimer = useRef<number | undefined>(undefined)
 
@@ -247,8 +321,7 @@ function DeviceRow({ device, onOpen, onPrefetch }: { device: Device; onOpen: (de
     >
       <TableCell className="px-3 py-1.5 font-medium text-zinc-300 sm:px-4">
         <div className="flex items-baseline gap-2">
-          <span>{device.name ?? device.id}</span>
-          {device.name && <span className="truncate text-[9px] font-normal text-zinc-700">{device.id}</span>}
+          <span>{device.name ?? 'Unnamed device'}</span>
         </div>
       </TableCell>
       <TableCell className="px-3 py-1.5 tabular-nums text-zinc-400 sm:px-4">{formatPower(device.power)}</TableCell>
@@ -260,6 +333,7 @@ function DeviceRow({ device, onOpen, onPrefetch }: { device: Device; onOpen: (de
 }
 
 function DeviceDetail({ device, open }: { device: Device; open: boolean }) {
+  const [copiedId, setCopiedId] = useState(false)
   const metricsQuery = useDeviceMetricsQuery(device.id, 60, open)
   const liveQuery = useDeviceLiveQuery(device.id, open)
   useDeviceLiveStream(device.id, open)
@@ -267,11 +341,32 @@ function DeviceDetail({ device, open }: { device: Device; open: boolean }) {
   const live = liveQuery.data && 'timestamp' in liveQuery.data ? liveQuery.data : device
   const liveStatus = 'status' in live && live.status ? live.status : device.status
 
+  async function copyDeviceId() {
+    await navigator.clipboard.writeText(device.id)
+    setCopiedId(true)
+    window.setTimeout(() => setCopiedId(false), 1200)
+  }
+
   return (
     <>
       <SheetHeader>
-        <SheetTitle className="text-zinc-100">{device.name ?? device.id}</SheetTitle>
-        <SheetDescription className="text-zinc-500">{device.id}</SheetDescription>
+        <SheetTitle className="text-zinc-100">{device.name ?? 'Unnamed device'}</SheetTitle>
+        <SheetDescription asChild>
+          <div className="mt-1 flex items-center gap-2 text-zinc-500">
+            <code className="min-w-0 flex-1 truncate rounded border border-white/[0.08] bg-white/[0.03] px-2 py-1 text-[11px] text-zinc-400">{device.id}</code>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={copyDeviceId}
+              className="h-7 w-7 shrink-0 border-white/[0.08] bg-[#0f1113] p-0 text-zinc-500 hover:bg-white/[0.04] hover:text-zinc-300"
+              aria-label="Copy device UUID"
+              title="Copy UUID"
+            >
+              {copiedId ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            </Button>
+          </div>
+        </SheetDescription>
       </SheetHeader>
       <div className="mt-5 space-y-3">
         <div className="grid grid-cols-2 gap-2">
