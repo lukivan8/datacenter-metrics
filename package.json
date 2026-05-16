@@ -14,6 +14,7 @@
     "build:api": "npm run build -w ingestion-endpoint",
     "build:web": "npm run build -w datacenter-dashboard",
     "deploy": "./scripts/deploy.sh",
+    "docker:local": "./scripts/docker-local.sh",
     "stop": "./scripts/stop.sh",
     "status": "./scripts/status.sh",
     "build": "npm run build:shared && npm run build:api && npm run build -w device-simulation && npm run build:web"

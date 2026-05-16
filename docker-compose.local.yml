@@ -1,0 +1,57 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: telemetry
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d telemetry"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  app:
+    build:
+      context: .
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/telemetry
+      HOST: 0.0.0.0
+      PORT: 3000
+      STATIC_DIR: /app/datacenter-dashboard/dist
+      LOG_FILE: /app/logs/ingestion.log
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "cd /app/ingestion-endpoint && node -e \"import('node:fs/promises').then(async fs=>{const {Pool}=await import('pg'); const p=new Pool({connectionString:process.env.DATABASE_URL}); await p.query(await fs.readFile('/app/ingestion-endpoint/db/schema.sql','utf8')); await p.end(); console.log('Database migration applied successfully.');})\" && node dist/server.js"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+
+  simulator:
+    build:
+      context: .
+    environment:
+      SIM_URL: http://app:3000/api/metrics
+      SIM_INTERVAL: ${SIM_INTERVAL:-3s}
+      SIM_DEVICES: ${SIM_DEVICES:-50}
+    volumes:
+      - ./logs:/app/logs
+      - ./device-simulation/device-ids.json:/app/device-simulation/device-ids.json
+    depends_on:
+      app:
+        condition: service_healthy
+    command: >
+      sh -c "node device-simulation/dist/index.js --url $$SIM_URL --interval $$SIM_INTERVAL --devices $$SIM_DEVICES --log-file /app/logs/device-simulation.log"
+
+volumes:
+  postgres-data:

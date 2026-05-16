@@ -1,0 +1,9 @@
+**/node_modules
+**/dist
+**/logs
+.git
+.run
+.env
+**/.env
+device-simulation/device-ids.json
+README_CHECKLIST.tmp.md
