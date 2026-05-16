@@ -17,7 +17,7 @@ export function DashboardHeader() {
   return (
     <div className="flex flex-col gap-2 border-b border-white/[0.07] px-3 py-2.5 sm:px-4 lg:flex-row lg:items-center lg:justify-between">
       <div className="min-w-0">
-        <p className="text-[9px] font-medium uppercase tracking-[0.26em] text-zinc-600">Aravolta Operations</p>
+        <p className="text-[9px] font-medium uppercase tracking-[0.26em] text-zinc-600">lukivan8-datacenter Operations</p>
         <h1 className="mt-0.5 text-xl font-semibold tracking-tight text-zinc-200">Live Device Telemetry</h1>
       </div>
 

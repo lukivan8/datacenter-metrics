@@ -2,6 +2,8 @@
 
 A take-home implementation for a live telemetry dashboard and API. The system ingests device power/temperature readings, persists time-series metrics, exposes query/live endpoints, and renders a React fleet dashboard that consumes the backend API.
 
+For the implementation narrative and decision-making notes, see [`DEVLOG.md`](./DEVLOG.md).
+
 ## Contents
 
 1. [Project overview](#1-project-overview)
