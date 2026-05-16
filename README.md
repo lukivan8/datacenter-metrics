@@ -4,6 +4,8 @@ A take-home implementation for a live telemetry dashboard and API. The system in
 
 For the implementation narrative and decision-making notes, see [`DEVLOG.md`](./DEVLOG.md).
 
+Task brief: https://aravolta.notion.site/interview
+
 ## Contents
 
 1. [Project overview](#1-project-overview)
