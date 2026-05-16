@@ -11,14 +11,12 @@ export const statusVariant: Record<DashboardDeviceStatus, 'default' | 'secondary
   normal: 'secondary',
   warning: 'outline',
   critical: 'destructive',
-  offline: 'outline',
 }
 
 export const statusClasses: Record<DashboardDeviceStatus, string> = {
   normal: 'border-white/[0.08] bg-white/[0.035] text-zinc-400 hover:bg-white/[0.035]',
   warning: 'border-amber-400/15 bg-amber-500/[0.08] text-amber-400 hover:bg-amber-500/[0.08]',
   critical: 'border-red-400/15 bg-red-500/[0.09] text-red-400 hover:bg-red-500/[0.09]',
-  offline: 'border-white/[0.07] bg-black/20 text-zinc-600 hover:bg-black/20',
 }
 
 export const telemetryChartConfig = {

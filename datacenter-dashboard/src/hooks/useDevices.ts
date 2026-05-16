@@ -100,7 +100,6 @@ export function useDeviceLiveStream(deviceId: string | undefined, enabled: boole
 }
 
 function calculateDeviceStatus(power: number | null, temperature: number | null): DeviceStatus {
-  if (power == null && temperature == null) return 'offline'
   return calculateTelemetryStatus({ power: power ?? Number.NEGATIVE_INFINITY, temperature: temperature ?? Number.NEGATIVE_INFINITY })
 }
 

@@ -1,4 +1,4 @@
-export type DeviceStatus = 'normal' | 'warning' | 'critical' | 'offline'
+export type DeviceStatus = 'normal' | 'warning' | 'critical'
 export type DeviceType = 'CRAC' | 'Network Switch' | 'UPS' | 'PDU' | null
 
 export type Device = {

@@ -46,10 +46,33 @@ async function readStoredDeviceIds(): Promise<string[]> {
 export function generateMetric(deviceId: string): MetricPayload {
   return {
     deviceId,
-    power: randomInt(450, 850),
-    temperature: randomInt(65, 92),
+    power: generateRareCriticalValue([
+      { chance: 0.8, min: 450, max: 790 },
+      { chance: 0.18, min: 800, max: 980 },
+      { chance: 0.02, min: 1_000, max: 1_150 },
+    ]),
+    temperature: generateRareCriticalValue([
+      { chance: 0.8, min: 65, max: 79 },
+      { chance: 0.18, min: 80, max: 94 },
+      { chance: 0.02, min: 95, max: 105 },
+    ]),
     timestamp: new Date().toISOString(),
   };
+}
+
+type ValueBand = { chance: number; min: number; max: number };
+
+function generateRareCriticalValue(bands: ValueBand[]): number {
+  const roll = Math.random();
+  let cumulativeChance = 0;
+
+  for (const band of bands) {
+    cumulativeChance += band.chance;
+    if (roll <= cumulativeChance) return randomInt(band.min, band.max);
+  }
+
+  const fallback = bands.at(-1) ?? { min: 0, max: 0 };
+  return randomInt(fallback.min, fallback.max);
 }
 
 export async function runDevice(

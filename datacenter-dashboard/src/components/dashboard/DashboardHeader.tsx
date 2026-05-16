@@ -58,7 +58,6 @@ export function DashboardHeader() {
             <SelectItem value="normal">Normal</SelectItem>
             <SelectItem value="warning">Warning</SelectItem>
             <SelectItem value="critical">Critical</SelectItem>
-            <SelectItem value="offline">Offline</SelectItem>
           </SelectContent>
         </Select>
       </div>

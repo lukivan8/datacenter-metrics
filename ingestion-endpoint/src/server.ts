@@ -133,7 +133,7 @@ export async function buildServer() {
     app.get("/api/devices", async (request) => {
         const q = request.query as Record<string, string | undefined>;
         const page = Math.max(1, Number(q.page ?? 1));
-        const pageSize = Math.min(200, Math.max(1, Number(q.pageSize ?? 50)));
+        const pageSize = Math.min(50_000, Math.max(1, Number(q.pageSize ?? 50)));
         const sortBy = (
             q.sortBy && q.sortBy in deviceListSortColumns ? q.sortBy : "id"
         ) as keyof typeof deviceListSortColumns;
